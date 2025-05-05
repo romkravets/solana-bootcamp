@@ -1,60 +1,59 @@
-import { useEffect, useState } from "react";
-import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
-import { useWallet } from "@solana/wallet-adapter-react";
+import React, { useEffect, useState } from "react";
+import {
+  Connection,
+  PublicKey,
+  clusterApiUrl,
+} from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
-const UserTokensTab = () => {
-  const { publicKey } = useWallet();
-  const [tokens, setTokens] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+interface TokenAccount {
+  mint: string;
+  amount: number;
+}
+
+const UserTokensTab: React.FC = () => {
+  const [tokenAccounts, setTokenAccounts] = useState<TokenAccount[]>([]);
 
   useEffect(() => {
-    if (!publicKey) return;
-
-    const fetchTokens = async () => {
-      setLoading(true);
+    const fetchTokenAccounts = async () => {
       try {
-        const connection = new Connection(clusterApiUrl("devnet"));
-        const accounts = await connection.getParsedTokenAccountsByOwner(
-          publicKey,
-          {
-            programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), // SPL Token Program
-          }
-        );
-        const tokenList = accounts.value.map((accountInfo) => {
-          const info = accountInfo.account.data.parsed.info;
+        const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+
+        const walletPublicKey = new PublicKey("GStMBjSMRU8n96KT5aXRexbn5dwrQPDg3PwZ39ydHDy4");
+
+        const accounts = await connection.getParsedTokenAccountsByOwner(walletPublicKey, {
+          programId: TOKEN_PROGRAM_ID,
+        });
+
+        console.log("Token accounts found:", accounts.value.length);
+
+        const tokens: TokenAccount[] = accounts.value.map(({ account }) => {
+          const info = account.data.parsed.info;
           return {
             mint: info.mint,
             amount: info.tokenAmount.uiAmount,
-            decimals: info.tokenAmount.decimals,
           };
         });
-        setTokens(tokenList);
+
+        setTokenAccounts(tokens);
       } catch (error) {
-        console.error("Error fetching tokens:", error);
-      } finally {
-        setLoading(false);
+        console.error("Error fetching token accounts:", error);
       }
     };
 
-    fetchTokens();
-  }, [publicKey]);
-
-  if (!publicKey) return <p className="text-center">Connect your wallet</p>;
-  if (loading) return <p className="text-center">Loading tokens...</p>;
+    fetchTokenAccounts();
+  }, []);
 
   return (
-    <div className="space-y-4 mt-4">
-      {tokens.length === 0 ? (
-        <p className="text-center">No tokens found</p>
+    <div>
+      <h2>User Token Accounts</h2>
+      {tokenAccounts.length === 0 ? (
+        <p>No tokens found.</p>
       ) : (
-        <ul className="space-y-2">
-          {tokens.map((token, index) => (
-            <li
-              key={index}
-              className="p-4 rounded border shadow-sm flex justify-between"
-            >
-              <span>Mint: {token.mint}</span>
-              <span>Amount: {token.amount}</span>
+        <ul>
+          {tokenAccounts.map((token, index) => (
+            <li key={index}>
+              Mint: {token.mint} — Amount: {token.amount}
             </li>
           ))}
         </ul>
